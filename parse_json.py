@@ -56,6 +56,8 @@ filePath = '/Users/shri/devel/marine_data_project/raw_files'
 # # for filename in os.listdir(dataFilesPath):
 # filename = filePath + '/ais_part0004.ttl.bz2'
 
+skip_ids = {}
+
 for filename in os.listdir(filePath):
 
 	if filename[-4:] != '.bz2':
@@ -75,12 +77,15 @@ for filename in os.listdir(filePath):
 
 	t1 = time.time()
 
-	conn = sqlite3.connect('/Users/shri/devel/marine_data_project/ais_messages.sqlite')
+	conn = sqlite3.connect('/Users/shri/devel/marine_data_project/message_tmp.sqlite')
 	cursor = conn.cursor()
 
 
 	for msg in jData:
 		
+		if msg in skip_ids:
+			continue
+
 		# inti empty obj
 		msgID = msg
 		# print msgID
@@ -91,12 +96,37 @@ for filename in os.listdir(filePath):
 
 		# initialize the row values
 		obj = jData[msg]
+		# print '-'*50
 		for predicate in obj:
 
 			if predicate not in headers:
 				continue		
-			# print predicate,'\t',obj[predicate][0]['value']
-			rowObj[headers[predicate]] = "'"+str(obj[predicate][0]['value']).replace("'","")+"'"
+
+			obj2 = obj[predicate][0]
+
+			if 'type' in obj2 and obj2['type'] == 'bnode':
+
+				bNodeId = obj2['value']
+				skip_ids[bNodeId] = True
+				rowObj[headers[predicate]] = "'"+str(obj[predicate][0]['value']).replace("'","")+"'"
+
+				obj3 = jData[bNodeId]
+				for predicate2 in obj3:
+					if predicate2 not in headers:
+						continue		
+					# print headers[predicate2],':',str(obj3[predicate2][0]['value']).replace("'","")
+
+					rowObj[headers[predicate2]] = "'"+str(obj3[predicate2][0]['value']).replace("'","")+"'"
+
+			else :	
+
+				if predicate not in headers:
+					continue		
+
+				# print predicate,'\t',obj[predicate][0]['value']
+				rowObj[headers[predicate]] = "'"+str(obj[predicate][0]['value']).replace("'","")+"'"
+
+				# print rowObj[headers[predicate]],':',str(obj[predicate][0]['value']).replace("'","")
 
 
 			# if predicate not in uniq_predicates:

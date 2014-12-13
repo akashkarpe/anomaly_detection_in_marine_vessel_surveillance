@@ -5,32 +5,6 @@ import time
 import sqlite3
 import os
 
-filePath = '/Users/shri/devel/marine_data_project/raw_files'
-
-# filelist = open(sys.argv[1])
-# # for filename in os.listdir(dataFilesPath):
-# for filename in filelist:
-
-filename = filePath + '/ais_part0003.ttl.bz2'
-
-os.system('gunzip ' + filename)
-
-t1 = time.time()
-os.system('rapper -i turtle -o json ' + filename[:-4] + ' > ais_part_temp.json')
-print 'parsed rdf file : ',(time.time() - t1)
-
-t1 = time.time()
-f1 = open('ais_part_temp.json')
-jData = json.load(f1)
-print 'json loaded : ',(time.time() - t1)
-
-t1 = time.time()
-uniq_predicates = {}
-
-conn = sqlite3.connect('/Users/shri/devel/marine_data_project/ais_messages.sqlite')
-cursor = conn.cursor()
-
-
 header2 = ['msgID','navigationalStatus','utcSecond','extension','heading','speedOverGround','utcDay','utcMonth','actorType','mmsi','name','imo','utcMinute','slots','callSign','longitude','messageSequenceNumber','utcYear','timeStamp','latitude','destination','unit','messageIncrement','messagePayload','specialManoeuvre','typeLabel','utcHour','courseOverGround','acknowledgementFor','utcReport','messageDestination','messageOffset','position','messageApplicationID','dimensions','rateOfTurn','timeOut','eta']
 
 headers = {
@@ -73,44 +47,76 @@ headers = {
 'http://semanticweb.cs.vu.nl/poseidon/ns/ais/eta' : 'eta'
 }
 
-for msg in jData:
-	
-	# inti empty obj
-	msgID = msg
-	# print msgID
-	rowObj = { 'msgID' : "'"+msgID+"'" }
-
-	for h in headers:
-		rowObj[headers[h]] = 'null'
-
-	# initialize the row values
-	obj = jData[msg]
-	for predicate in obj:
-
-		if predicate not in headers:
-			continue		
-		# print predicate,'\t',obj[predicate][0]['value']
-		rowObj[headers[predicate]] = "'"+str(obj[predicate][0]['value']).replace("'","")+"'"
+uniq_predicates = {}
 
 
-		# if predicate not in uniq_predicates:
-		# 	uniq_predicates[predicate] = 0
-		# uniq_predicates[predicate] = uniq_predicates[predicate] + 1
+filePath = '/Users/shri/devel/marine_data_project/raw_files'
 
-	valuesArr = []
-	for h in header2:
-		valuesArr.append(rowObj[h])
+# filelist = open(filePath)
+# # for filename in os.listdir(dataFilesPath):
+# filename = filePath + '/ais_part0004.ttl.bz2'
 
-	sQuery = "insert into messages values ("+ ','.join(valuesArr) +"); "
-	# print sQuery
-	cursor.execute(sQuery);
+for filename in os.listdir(filePath):
 
-os.system('rm ais_part_temp.json')
+	if filename[-4:] != '.bz2':
+		continue
 
-conn.commit()
-conn.close()	
+	print filename
+	os.system('gunzip ' + filePath+'/'+filename)
 
-print 'processing done : ',(time.time() - t1)
+	t1 = time.time()
+	os.system('rapper -i turtle -o json ' + filePath+'/'+filename[:-4] + ' > ais_part_temp.json')
+	print 'parsed rdf file : ',(time.time() - t1)
+
+	t1 = time.time()
+	f1 = open('ais_part_temp.json')
+	jData = json.load(f1)
+	print 'json loaded : ',(time.time() - t1)
+
+	t1 = time.time()
+
+	conn = sqlite3.connect('/Users/shri/devel/marine_data_project/ais_messages.sqlite')
+	cursor = conn.cursor()
+
+
+	for msg in jData:
+		
+		# inti empty obj
+		msgID = msg
+		# print msgID
+		rowObj = { 'msgID' : "'"+msgID+"'" }
+
+		for h in headers:
+			rowObj[headers[h]] = 'null'
+
+		# initialize the row values
+		obj = jData[msg]
+		for predicate in obj:
+
+			if predicate not in headers:
+				continue		
+			# print predicate,'\t',obj[predicate][0]['value']
+			rowObj[headers[predicate]] = "'"+str(obj[predicate][0]['value']).replace("'","")+"'"
+
+
+			# if predicate not in uniq_predicates:
+			# 	uniq_predicates[predicate] = 0
+			# uniq_predicates[predicate] = uniq_predicates[predicate] + 1
+
+		valuesArr = []
+		for h in header2:
+			valuesArr.append(rowObj[h])
+
+		sQuery = "insert into messages values ("+ ','.join(valuesArr) +"); "
+		# print sQuery
+		cursor.execute(sQuery);
+
+	os.system('rm ais_part_temp.json')
+
+	conn.commit()
+	conn.close()	
+
+	print 'processing done : ',(time.time() - t1)
 
 # print len(jData)
 
